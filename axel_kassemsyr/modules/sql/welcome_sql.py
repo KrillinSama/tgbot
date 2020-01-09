@@ -98,9 +98,9 @@ class DefenseMode(BASE):
     chat_id = Column(String(14), primary_key=True)
     status = Column(Boolean, default=False)
 
-     def __init__(self, chat_id, status):
-        self.chat_id = str(chat_id)
-        self.status = status
+    def __init__(self, chat_id, status):
+       self.chat_id = str(chat_id)
+       self.status = status
         
 Welcome.__table__.create(checkfirst=True)
 WelcomeButtons.__table__.create(checkfirst=True)
