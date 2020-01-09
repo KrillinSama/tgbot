@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 from telegram import Message, Chat, Update, Bot, MessageEntity, User, Update
 from telegram import ParseMode, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import CommandHandler, run_async, Filters
-from tg_bot.modules.helper_funcs.misc import split_message
 from telegram.utils.helpers import escape_markdown, mention_html
 
 from axel_kassemsyr import dispatcher, updater, LOGGER
@@ -503,32 +502,27 @@ def descendant(bot: Bot, update: Update, args: List[str]):
 
     
 def smfw(bot, update, args):
-    msg = update.effective_message
-    print(args)
-    args = msg.text.split(None, 1)
+    message = update.effective_message
+    model = args[0].upper()
+    csc = args[1].upper()
 
-     if len(args) < 2:
-        update.effective_message.delete()
+    if len(args) != 2:
+        update.effective_message.reply_text("Please type your device **MODEL** and **CSC** into it!\nFor example, `/smfw SM-G975F XSG`", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
-    extracted = split_message(args)
+        
+    url0 = "https://samfrew.com/model/" + model + "/region/" + csc + "/"
+    url1 = "https://www.sammobile.com/samsung/firmware/" + model + "/" + csc + "/"
+    url2 = "https://sfirmware.com/samsung-" + model + "/#tab=firmwares/"
 
-     if len(extracted) >= 2:
-        model = extracted[0].upper()
-        csc = extracted[1].upper()
-        url1 = f'https://samfrew.com/model/{model}/region/{csc}/'
-        url2 = f'https://www.sammobile.com/samsung/firmware/{model}/{csc}/'
-        url3 = f'https://sfirmware.com/samsung-{model}/#tab=firmwares'
-
-         reply = f'*Downloads for {model} and {csc}*\n'
-        reply += f'{url1}\n'
-        reply += f'{url2}\n'
-        reply += f'{url3}\n'
-        update.message.reply_text("{}".format(reply),
-                               parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
-    else:    
-        update.effective_message.delete()
+    message = "*OFFICAL FIRMWARE FOR:*\nDEVICE : " + model + "\nCSC : " + csc + "\n"
+                       
+    keyboard = [[InlineKeyboardButton(text="samfrew.com", url=f"{url0}")]]
+    keyboard += [[InlineKeyboardButton(text="samobile.com", url=f"{url1}")]]
+    keyboard += [[InlineKeyboardButton(text="sfirmware.com", url=f"{url2}")]]
+    update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
     
-
+    
+    
 def miui(bot: Bot, update: Update):
     giturl = "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/"
     message = update.effective_message
@@ -671,7 +665,7 @@ __help__ = """
  - /los <device>: Get the LineageOS Rom
  - /bootleggers <device>: Get the Bootleggers Rom
  - /minu <device>: Get *XIAOMI* firmwares
- - /sm <device> <csc>: Get *SAMSUNG* firmwarea
+ - /samsung <device-model> <csc>: Get *SAMSUNG* firmwarea
  
  *Android GSIs*
  - /phh: Get the lastest Phh AOSP Oreo GSI!
@@ -688,7 +682,7 @@ SPECS_HANDLER = DisableAbleCommandHandler("specs", specs, pass_args=True)
 TWRP_HANDLER = DisableAbleCommandHandler("twrp", twrp, pass_args=True)
 GETAEX_HANDLER = DisableAbleCommandHandler("aex", getaex, pass_args=True, admin_ok=True)
 MIUI_HANDLER = DisableAbleCommandHandler("miui", miui, admin_ok=True)
-SMFW_HANDLER = DisableAbleCommandHandler("smfw", smfw, pass_args=True)
+SMFW_HANDLER = DisableAbleCommandHandler("samsung", smfw, pass_args=True)
 EVO_HANDLER = DisableAbleCommandHandler("evo", evo, admin_ok=True)
 HAVOC_HANDLER = DisableAbleCommandHandler("havoc", havoc, admin_ok=True)
 VIPER_HANDLER = DisableAbleCommandHandler("viper", viper, admin_ok=True)
