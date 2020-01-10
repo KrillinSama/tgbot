@@ -522,7 +522,7 @@ def smcheckfw(bot, update, args):
     os2 = page2.find("latest").get("o")
     if page1.find("latest").text.strip():
         pda1,csc1,phone1=page1.find("latest").text.strip().split('/')
-        reply = f'*Firmware Information for: \nDEVICE : {model.upper()} \nCSC : {csc.upper()} :*\n'
+        reply = f'*Firmware Information for: \nDEVICE : {model.upper()} \nCSC : {csc.upper()} *\n'
         reply += f'*Latest released firmware:*\n'
         reply += f'• PDA: `{pda1}`\n• CSC: `{csc1}`\n'
         if phone1:
