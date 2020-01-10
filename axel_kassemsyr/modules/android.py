@@ -6,6 +6,7 @@ import yaml
 from datetime import datetime
 from typing import Optional, List
 from hurry.filesize import size as sizee
+from requests import get
 from bs4 import BeautifulSoup
 
 from telegram import Message, Chat, Update, Bot, MessageEntity, User, Update
@@ -19,8 +20,7 @@ from axel_kassemsyr.__main__ import STATS, USER_INFO
 from axel_kassemsyr.modules.disable import DisableAbleCommandHandler
 from axel_kassemsyr.modules.helper_funcs.extraction import extract_user
 from axel_kassemsyr.modules.helper_funcs.filters import CustomFilters
-
-from requests import get
+from axel_kassemsyr.modules.helper_funcs.misc import split_message
 
 GITHUB = 'https://github.com'
 DEVICES_DATA = 'https://raw.githubusercontent.com/androidtrackers/certified-android-devices/master/devices.json'
@@ -500,29 +500,94 @@ def descendant(bot: Bot, update: Update, args: List[str]):
             continue
     message.reply_text(reply_text, parse_mode=ParseMode.MARKDOWN)
 
-    
-def smfw(bot, update, args):
-    message = update.effective_message
-    model = args[0].upper()
-    csc = args[1].upper()
-
-    if len(args) != 2:
-        update.effective_message.reply_text("Please type your device **MODEL** and **CSC** into it!\nFor example, `/smfw SM-G975F XSG`", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+@run_async
+def smcheckfw(bot, update, args):
+    if not len(args) == 2:
+        reply = f'Please type your device **model** & **csc**  into it!\nFor example, `/samsung SM-G975F INS`!'
+        del_msg = update.effective_message.reply_text("{}".format(reply),
+                               parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
-        
-    url0 = "https://samfrew.com/model/" + model + "/region/" + csc + "/"
-    url1 = "https://www.sammobile.com/samsung/firmware/" + model + "/" + csc + "/"
-    url2 = "https://sfirmware.com/samsung-" + model + "/#tab=firmwares/"
+    temp,csc = args
+    model = f'sm-'+temp if not temp.upper().startswith('SM-') else temp
+    fota = get(f'http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.xml')
+    test = get(f'http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.test.xml')
+    if test.status_code != 200:
+        reply = f"Couldn't check for {temp.upper()} and {csc.upper()}, please refine your search or try again later!"
+        del_msg = update.effective_message.reply_text("{}".format(reply),
+                               parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+        return
+    page1 = BeautifulSoup(fota.content, 'lxml')
+    page2 = BeautifulSoup(test.content, 'lxml')
+    os1 = page1.find("latest").get("o")
+    os2 = page2.find("latest").get("o")
+    if page1.find("latest").text.strip():
+        pda1,csc1,phone1=page1.find("latest").text.strip().split('/')
+        reply = f'*Firmware Information for: \nDEVICE : {model.upper()} \nCSC : {csc.upper()} :*\n'
+        reply += f'*Latest released firmware:*\n'
+        reply += f'• PDA: `{pda1}`\n• CSC: `{csc1}`\n'
+        if phone1:
+            reply += f'• Phone: `{phone1}`\n'
+        if os1:
+            reply += f'• Android: `{os1}`\n'
+        reply += f'\n'
+    else:
+        reply = f'*No public release found for {model.upper()} and {csc.upper()}.*\n\n'
+    reply += f'*Latest test firmware:*\n'
+    if len(page2.find("latest").text.strip().split('/')) == 3:
+        pda2,csc2,phone2=page2.find("latest").text.strip().split('/')
+        reply += f'• PDA: `{pda2}`\n• CSC: `{csc2}`\n'
+        if phone2:
+            reply += f'• Phone: `{phone2}`\n'
+        if os2:
+            reply += f'• Android: `{os2}`\n'
+        reply += f'\n'
+    else:
+        md5=page2.find("latest").text.strip()
+        reply += f'• Hash: `{md5}`\n• Android: `{os2}`\n\n'
+    
+    update.message.reply_text("{}".format(reply),
+                           parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
-    message = "*OFFICAL FIRMWARE FOR:*\nDEVICE : " + model + "\nCSC : " + csc + "\n"
-                       
-    keyboard = [[InlineKeyboardButton(text="samfrew.com", url=f"{url0}")]]
-    keyboard += [[InlineKeyboardButton(text="samobile.com", url=f"{url1}")]]
-    keyboard += [[InlineKeyboardButton(text="sfirmware.com", url=f"{url2}")]]
-    update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
-    
-    
-    
+@run_async
+def smfw(bot, update, args):
+    if not len(args) == 2:
+        reply = f'Please type your device **model** & **csc**  into it!\nFor example, `/samsung SM-G975F INS`!'
+        del_msg = update.effective_message.reply_text("{}".format(reply),
+                               parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+        return
+    temp,csc = args
+    model = f'sm-'+temp if not temp.upper().startswith('SM-') else temp
+    test = get(f'http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.test.xml')
+    if test.status_code != 200:
+        reply = f"Couldn't find any firmware downloads for {temp.upper()} and {csc.upper()}, please refine your search or try again later!"
+        del_msg = update.effective_message.reply_text("{}".format(reply),
+                               parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+        return
+    url1 = f'https://samfrew.com/model/{model.upper()}/region/{csc.upper()}/'
+    url2 = f'https://www.sammobile.com/samsung/firmware/{model.upper()}/{csc.upper()}/'
+    url3 = f'https://sfirmware.com/samsung-{model.lower()}/#tab=firmwares'
+    url4 = f'https://samfw.com/firmware/{model.upper()}/{csc.upper()}/'
+    fota = get(f'http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.xml')
+    page = BeautifulSoup(fota.content, 'lxml')
+    os = page.find("latest").get("o")
+    reply = ""
+    if page.find("latest").text.strip():
+        pda,csc2,phone=page.find("latest").text.strip().split('/')
+        reply += f'*Latest avaliable firmware for: \nDevice: {model.upper()} \nCSC: {csc.upper()} *\n'
+        reply += f'• PDA: `{pda}`\n• CSC: `{csc2}`\n'
+        if phone:
+            reply += f'• Phone: `{phone}`\n'
+        if os:
+            reply += f'• Android: `{os}`\n'
+    reply += f'\nDownload from below'
+    keyboard = [[InlineKeyboardButton(text="samfrew.com", url=f"{url1}")]]
+    keyboard += [[InlineKeyboardButton(text="samobile.com", url=f"{url2}")]]
+    keyboard += [[InlineKeyboardButton(text="sfirmware.com", url=f"{url3}")]]
+    keyboard += [[InlineKeyboardButton(text="smfw.com ☆", url=f"{url4}")]]
+    update.message.reply_text("{}".format(reply), reply_markup=InlineKeyboardMarkup(keyboard),
+                           parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+
+                           
 def miui(bot: Bot, update: Update):
     giturl = "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/"
     message = update.effective_message
@@ -665,7 +730,8 @@ __help__ = """
  - /los <device>: Get the LineageOS Rom
  - /bootleggers <device>: Get the Bootleggers Rom
  - /minu <device>: Get *XIAOMI* firmwares
- - /samsung <device-model> <csc>: Get *SAMSUNG* firmwarea
+ - /samsung <device-model> <csc>: Get *SAMSUNG* firmware
+ - /samsungcheck <device-model> <csc>: Get *SAMSUNG* latest firmware information from samsung server
  
  *Android GSIs*
  - /phh: Get the lastest Phh AOSP Oreo GSI!
@@ -695,6 +761,7 @@ DOTOS_HANDLER = DisableAbleCommandHandler("dotos", dotos, admin_ok=True)
 PIXYS_HANDLER = DisableAbleCommandHandler("pixys", pixys, admin_ok=True)
 LOS_HANDLER = DisableAbleCommandHandler("los", los, admin_ok=True)
 BOOTLEGGERS_HANDLER = DisableAbleCommandHandler("bootleggers", bootleggers, admin_ok=True)
+CHECKFW_HANDLER = DisableAbleCommandHandler("samsungcheck", smcheckfw, pass_args=True)
 
 dispatcher.add_handler(MAGISK_HANDLER)
 dispatcher.add_handler(DEVICE_HANDLER)
@@ -715,3 +782,4 @@ dispatcher.add_handler(DOTOS_HANDLER)
 dispatcher.add_handler(PIXYS_HANDLER)
 dispatcher.add_handler(LOS_HANDLER)
 dispatcher.add_handler(BOOTLEGGERS_HANDLER)
+dispatcher.add_handler(CHECKFW_HANDLER)
